@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora</title>
+    <style>
+        :root {
+            --fondo: #0f172a;
+            --panel: #1e293b;
+            --texto: #f8fafc;
+            --muted: #94a3b8;
+            --naranja: #f97316;
+            --naranja-hover: #fb923c;
+            --boton: #334155;
+            --boton-hover: #475569;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, #020617, #1e293b);
+            color: var(--texto);
+            font-family: Inter, Arial, sans-serif;
+        }
+
+        .calculadora {
+            width: min(92vw, 360px);
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            background: var(--panel);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        .pantalla {
+            height: 112px;
+            margin-bottom: 16px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: space-between;
+            overflow: hidden;
+            border-radius: 16px;
+            background: #0b1220;
+        }
+
+        #operacion {
+            min-height: 24px;
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        #resultado {
+            width: 100%;
+            overflow: hidden;
+            text-align: right;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 42px;
+            font-weight: 700;
+        }
+
+        .teclas {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        button {
+            aspect-ratio: 1;
+            border: 0;
+            border-radius: 14px;
+            background: var(--boton);
+            color: var(--texto);
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.08s ease, background 0.15s ease;
+        }
+
+        button:hover { background: var(--boton-hover); }
+        button:active { transform: scale(0.94); }
+
+        .operador {
+            background: var(--naranja);
+        }
+
+        .operador:hover { background: var(--naranja-hover); }
+
+        .limpiar {
+            background: #64748b;
+            color: white;
+        }
+
+        .cero {
+            grid-column: span 2;
+            aspect-ratio: auto;
+        }
+
+        @media (max-width: 420px) {
+            .calculadora { padding: 14px; }
+            .pantalla { height: 100px; }
+            #resultado { font-size: 36px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="calculadora" aria-label="Calculadora simple">
+        <div class="pantalla">
+            <div id="operacion" aria-live="polite"></div>
+            <div id="resultado" aria-live="polite">0</div>
+        </div>
+
+        <div class="teclas">
+            <button class="limpiar" data-action="clear">C</button>
+            <button data-action="backspace" aria-label="Borrar">⌫</button>
+            <button class="operador" data-value="%">%</button>
+            <button class="operador" data-value="÷">÷</button>
+
+            <button data-value="7">7</button>
+            <button data-value="8">8</button>
+            <button data-value="9">9</button>
+            <button class="operador" data-value="×">×</button>
+
+            <button data-value="4">4</button>
+            <button data-value="5">5</button>
+            <button data-value="6">6</button>
+            <button class="operador" data-value="−">−</button>
+
+            <button data-value="1">1</button>
+            <button data-value="2">2</button>
+            <button data-value="3">3</button>
+            <button class="operador" data-value="+">+</button>
+
+            <button class="cero" data-value="0">0</button>
+            <button data-value=".">.</button>
+            <button class="operador" data-action="equals">=</button>
+        </div>
+    </main>
+
+    <script>
+        const resultado = document.getElementById('resultado');
+        const operacion = document.getElementById('operacion');
+        let expresion = '';
+        let mostrarResultado = false;
+
+        function actualizarPantalla() {
+            resultado.textContent = expresion || '0';
+        }
+
+        function agregarValor(valor) {
+            if (mostrarResultado) {
+                if ('+-−×÷%'.includes(valor)) {
+                    mostrarResultado = false;
+                } else {
+                    expresion = '';
+                    mostrarResultado = false;
+                }
+            }
+
+            const operadores = '+-−×÷%';
+            const ultimo = expresion.slice(-1);
+
+            if (operadores.includes(valor) && operadores.includes(ultimo)) {
+                expresion = expresion.slice(0, -1) + valor;
+            } else if (valor === '.') {
+                const ultimoNumero = expresion.split(/[+\-−×÷%]/).pop();
+                if (!ultimoNumero.includes('.')) expresion += valor;
+            } else {
+                expresion += valor;
+            }
+
+            actualizarPantalla();
+        }
+
+        function calcular() {
+            if (!expresion) return;
+
+            operacion.textContent = expresion;
+            const calculable = expresion
+                .replace(/×/g, '*')
+                .replace(/÷/g, '/')
+                .replace(/−/g, '-')
+                .replace(/%/g, '/100');
+
+            try {
+                if (!/^[0-9+\-*/.()\s]+$/.test(calculable)) throw new Error('Operación no válida');
+                const valor = Function('"use strict"; return (' + calculable + ')')();
+                if (!Number.isFinite(valor)) throw new Error('Resultado no válido');
+                expresion = String(Number(valor.toFixed(10)));
+                actualizarPantalla();
+                mostrarResultado = true;
+            } catch (error) {
+                resultado.textContent = 'Error';
+                expresion = '';
+                mostrarResultado = true;
+            }
+        }
+
+        document.querySelectorAll('button').forEach(boton => {
+            boton.addEventListener('click', () => {
+                if (boton.dataset.action === 'clear') {
+                    expresion = '';
+                    operacion.textContent = '';
+                    mostrarResultado = false;
+                    actualizarPantalla();
+                } else if (boton.dataset.action === 'backspace') {
+                    expresion = expresion.slice(0, -1);
+                    actualizarPantalla();
+                } else if (boton.dataset.action === 'equals') {
+                    calcular();
+                } else {
+                    agregarValor(boton.dataset.value);
+                }
+            });
+        });
+
+        document.addEventListener('keydown', event => {
+            const teclas = {'Enter': '=', 'Escape': 'clear', 'Backspace': 'backspace'};
+            if (/^[0-9.]$/.test(event.key)) agregarValor(event.key);
+            else if (event.key === '+') agregarValor('+');
+            else if (event.key === '-') agregarValor('−');
+            else if (event.key === '*') agregarValor('×');
+            else if (event.key === '/') agregarValor('÷');
+            else if (event.key === '%') agregarValor('%');
+            else if (teclas[event.key] === '=') calcular();
+            else if (teclas[event.key] === 'clear') {
+                expresion = '';
+                operacion.textContent = '';
+                actualizarPantalla();
+            } else if (teclas[event.key] === 'backspace') {
+                expresion = expresion.slice(0, -1);
+                actualizarPantalla();
+            }
+        });
+    </script>
+</body>
+</html>
